@@ -12,7 +12,8 @@
   "dependencies": {
     "vue": "^2.5.2",
     "vue-transmit": "^8.1.4",
-    "vue-upload-component": "^2.8.14"
+    "vue-upload-component": "^2.8.14",
+    "xlsx": "^0.14.0"
   },
   "devDependencies": {
     "autoprefixer": "^7.1.2",

@@ -1,12 +1,10 @@
 <template>
     <div>
-
         <file-upload
                 ref="upload"
                 :drop="true"
                 :multiple="false"
                 @input-file="inputFile"
-                @input-filter="inputFilter"
         >
             <div class="dropzone">
                 Drop XLSX file here or click to upload.
@@ -59,8 +57,7 @@
       tableData: {
         header: [],
         body: []
-      },
-      uploadInputId: (new Date().getUTCMilliseconds())
+      }
     }),
     computed: {
       sqlQuery() {
@@ -73,15 +70,14 @@
           var rowQuery = []
 
           this.tableData.body.forEach((row) => {
-            rowQuery.push('SELECT ' +  Object.values(row).map((item, key) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''") : item) + '\' as ' + this.tableData.header[key])).join(',') + (this.queryMode == 'select_oracle' ? ' FROM DUAL' : ''))
+            rowQuery.push('SELECT ' +  Object.values(row).map((item, key) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''").replace(/&/g, '&&') : item) + '\' as ' + this.tableData.header[key])).join(',') + (this.queryMode == 'select_oracle' ? ' FROM DUAL' : ''))
           })
           sqlQuery = rowQuery.join("\nUNION ALL\n")
         }
         else {
           var insertQuery = (this.queryMode == 'insert' ? 'INSERT' : 'REPLACE')  + ' INTO ' + this.tableName + '('+ this.tableData.header.join(',')  +')'
           this.tableData.body.forEach((row) => {
-            debugger
-            sqlQuery += insertQuery + ' VALUES (' + Object.values(row).map((item) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''") : item) + '\'')).join(',') + ');' + "\n"
+            sqlQuery += insertQuery + ' VALUES (' + Object.values(row).map((item) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''").replace(/&/g, '&&') : item) + '\'')).join(',') + ');' + "\n"
           })
         }
 
@@ -89,16 +85,10 @@
       }
     },
     methods: {
-
       inputFile: function (newFile, oldFile) {
         if (newFile) {
-          // Get response data
-          console.log('response', newFile.response)
-
           this.rawFile = newFile.file
-
           this.convertToWorkbook()
-
         }
       },
       convertToWorkbook() {
@@ -192,22 +182,6 @@
       initTable({data, header}) {
         this.tableData.header = header
         this.tableData.body = data
-        //this.$emit('on-select-file', this.tableData)
-      },
-      inputFilter: function (newFile, oldFile, prevent) {
-        /*if (newFile && !oldFile) {
-          // Filter non-image file
-          if (!/\.(jpeg|jpe|jpg|gif|png|webp)$/i.test(newFile.name)) {
-            return prevent()
-          }
-        }
-
-        // Create a blob field
-        newFile.blob = ''
-        let URL = window.URL || window.webkitURL
-        if (URL && URL.createObjectURL) {
-          newFile.blob = URL.createObjectURL(newFile.file)
-        }*/
       }
     }
   }
