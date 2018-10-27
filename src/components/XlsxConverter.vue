@@ -99,7 +99,9 @@
             this.initTable(
               this.xlsxArrToTableArr(xlsxArr)
             )
-            this.createSqlQuery()
+            if (this.workbook !== null) {
+              this.tableName = this.workbook.SheetNames[0]
+            }
           })
           .catch((err) => {
             console.error(err)
