@@ -13,11 +13,12 @@
         <div v-if="tableData.body.length > 0">
             <select v-model="queryMode">
                 <option value="insert">INSERT Statements</option>
+                <option value="merge_sqlserver">MERGE Statements - SQL Server</option>
                 <option value="replace">REPLACE Statements</option>
                 <option value="select_oracle">SELECT Query - Oracle</option>
                 <option value="select_mysql">SELECT Query - MySQL</option>
             </select>
-            <input v-model="tableName" v-if="queryMode == 'insert' || queryMode == 'replace'"><br>
+            <input v-model="tableName" v-if="queryMode == 'insert' || queryMode == 'replace' || queryMode == 'merge_sqlserver'"><br>
             <textarea v-model="sqlQuery"></textarea>
         </div>
     </div>
@@ -61,6 +62,7 @@
     }),
     computed: {
       sqlQuery() {
+        let guard = (item) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''").replace(/&/g, '&&') : item) + '\'')
         if (this.tableData.body.length == 0) {
           return ''
         }
@@ -70,14 +72,30 @@
           var rowQuery = []
 
           this.tableData.body.forEach((row) => {
-            rowQuery.push('SELECT ' +  Object.values(row).map((item, key) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''").replace(/&/g, '&&') : item) + '\' as ' + this.tableData.header[key])).join(',') + (this.queryMode == 'select_oracle' ? ' FROM DUAL' : ''))
+            rowQuery.push('SELECT ' +  Object.values(row).map((item, key) => (guard(item)+' as ' + this.tableData.header[key])).join(',') + (this.queryMode == 'select_oracle' ? ' FROM DUAL' : ''))
           })
           sqlQuery = rowQuery.join("\nUNION ALL\n")
         }
-        else {
+        if (this.queryMode == 'merge_sqlserver') {
+          this.tableData.body.forEach((row) => {
+              var values = Object.values(row).map((item) => guard(item) ).join(',')
+              sqlQuery += ('MERGE INTO '+this.tableName+' as target USING (SELECT ' + values + ')' )
+              sqlQuery += ' as source ('+ this.tableData.header.join(',')  +') on '
+              sqlQuery += '(' + 'target.'+this.tableData.header[0]+' = source.'+this.tableData.header[0] +')'
+              sqlQuery += ' WHEN MATCHED THEN UPDATE SET ' + this.tableData.header.map( (item,i) => {
+                var rowItem = Object.values(row)[i]
+                return item + ' = ' + guard(rowItem) } 
+              )
+              sqlQuery += ' WHEN NOT MATCHED THEN INSERT ('+this.tableData.header.join(',') +') VALUES ('+values +')'
+              sqlQuery += ';\n'
+            }
+          )
+         
+        }
+        if(this.queryMode == 'insert' || this.queryMode == 'replace') {
           var insertQuery = (this.queryMode == 'insert' ? 'INSERT' : 'REPLACE')  + ' INTO ' + this.tableName + '('+ this.tableData.header.join(',')  +')'
           this.tableData.body.forEach((row) => {
-            sqlQuery += insertQuery + ' VALUES (' + Object.values(row).map((item) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''").replace(/&/g, '&&') : item) + '\'')).join(',') + ');' + "\n"
+            sqlQuery += insertQuery + ' VALUES (' + Object.values(row).map((item) => guard(item)).join(',') + ');' + "\n"
           })
         }
 
@@ -85,6 +103,7 @@
       }
     },
     methods: {
+     
       inputFile: function (newFile, oldFile) {
         if (newFile) {
           this.rawFile = newFile.file
