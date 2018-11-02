@@ -11,14 +11,19 @@
             </div>
         </file-upload>
         <div v-if="tableData.body.length > 0">
+            <select v-model="database">
+                <option value="mysql">MySQL</option>
+                <option value="mssql">Microsoft SQL Server</option>
+                <option value="oracle">Oracle</option>
+            </select>
             <select v-model="queryMode">
                 <option value="insert">INSERT Statements</option>
-                <option value="merge_sqlserver">MERGE Statements - SQL Server</option>
-                <option value="replace">REPLACE Statements</option>
-                <option value="select_oracle">SELECT Query - Oracle</option>
-                <option value="select_mysql">SELECT Query - MySQL</option>
+                <option value="merge_sqlserver" v-if="database === 'mssql'">MERGE Statements</option>
+                <option value="replace" v-if="database==='mysql'">REPLACE Statements</option>
+                <option value="select_oracle" v-if="database === 'oracle'">SELECT Query</option>
+                <option value="select_mysql" v-if="database !== 'oracle'">SELECT Query</option>
             </select>
-            <input v-model="tableName" v-if="queryMode == 'insert' || queryMode == 'replace' || queryMode == 'merge_sqlserver'"><br>
+            <input v-model="tableName" v-if="database !== '' && (queryMode == 'insert' || queryMode == 'replace' || queryMode == 'merge_sqlserver')"><br>
             <textarea v-model="sqlQuery"></textarea>
         </div>
     </div>
@@ -53,6 +58,7 @@
     data: () => ({
       queryMode: 'insert',
       tableName: 'table_name',
+      database: '',
       rawFile: null,
       workbook: null,
       tableData: {
@@ -62,7 +68,21 @@
     }),
     computed: {
       sqlQuery() {
-        let guard = (item) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''").replace(/&/g, '&&') : item) + '\'')
+        /*if (this.database === 'oracle') {
+          let guard = (item) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''").replace(/&/g, "'||chr(38)||'") : item) + '\'')
+        }
+        else {
+          let guard = (item) => ('\'' + (typeof(item) == 'string' ? item.replace(/'/g, "''") : item) + '\'')
+        }*/
+        let guard = (item) => {
+          if (typeof(item) == 'string') {
+            item = item.replace(/'/g, "''")
+            if (this.database === 'oracle') {
+              item = item.replace(/&/g, "'||chr(38)||'")
+            }
+          }
+          return `'${item}'`
+        }
         if (this.tableData.body.length == 0) {
           return ''
         }
